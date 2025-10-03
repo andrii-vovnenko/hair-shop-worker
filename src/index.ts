@@ -26,9 +26,13 @@ app.get("/v1/products", (c) => {
         length: 3, // LONG
         description: "Натуральна довга перука з глибоким об’ємом, підходить для урочистих подій.",
         variants: [
-          { id: "1-1", color: 1, price: 4500, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] },
-          { id: "1-2", color: 2, price: 4600, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] },
-          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] },
+          { id: "1-1", color: 1, price: 4500, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg", '1.webp', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-2", color: 2, price: 4600, old_price:6000, availability: true, images: ['1.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '2.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ['2.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '1.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ['3.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '1.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ['4.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '1.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ['5.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '1.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
+          { id: "1-3", color: 3, price: 4700, old_price:6000, availability: false, images: ['6.webp', 'd94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg', '1.webp', '3.webp', '4.webp', '5.webp', '6.webp'] },
           
         ]
       },
@@ -41,9 +45,10 @@ app.get("/v1/products", (c) => {
         description: "Синтетична перука середньої довжини у різних відтінках для щоденного носіння.",
         price: 3800,
         variants: [
-          { id: "2-1", color: 1, price: 3800, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg","image-blond.png"] },
-          { id: "2-2", color: 3, price: 3900, old_price:6000, availability: true,  images: ["image-blond.png","d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] },
-          
+          { id: "2-1", color: 1, price: 3800, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg","image-blond.png","1.webp", "2.webp", "3.webp", "4.webp", "5.webp"] },
+          { id: "2-2", color: 3, price: 3900, old_price:6000, availability: true,  images: ["image-blond.png","d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg","1.webp", "2.webp", "3.webp", "4.webp", "5.webp"] },
+          { id: "2-2", color: 3, price: 3900, old_price:6000, availability: true,  images: ["6.webp","d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg","1.webp", "2.webp", "3.webp", "4.webp", "5.webp"] },
+          { id: "2-2", color: 3, price: 3900, old_price:6000, availability: true,  images: ["4.webp","d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg","1.webp", "2.webp", "3.webp", "4.webp", "5.webp"] },
         ]
       },
       {
@@ -54,7 +59,9 @@ app.get("/v1/products", (c) => {
         length: 2, // MEDIUM
         description: "Яскрава рудувата перука з натурального волосся для сміливого стилю.",
         variants: [
-          { id: "3-1", color: 4, price: 4200, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] }
+          { id: "3-1", color: 4, price: 4200, old_price:6000, availability: true, images: ["d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg"] },
+          { id: "3-1", color: 4, price: 4200, old_price:6000, availability: true, images: ["1.webp", "2.webp", "3.webp", "4.webp", "5.webp", "6.webp"]},
+          { id: "3-1", color: 4, price: 4200, old_price:6000, availability: true, images: ["2.webp", "d94e27ea-7cca-4efd-b9d6-39f391ce806f.jpeg", "1.webp", "3.webp", "4.webp", "5.webp", "6.webp"] }
         ]
       },
       {
