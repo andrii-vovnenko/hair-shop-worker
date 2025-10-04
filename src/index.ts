@@ -36,6 +36,39 @@ app.get('/api-docs', (c) => {
     ],
     paths: {
       '/v1/colors': {
+        get: {
+          tags: ['Colors'],
+          summary: 'Get all colors',
+          responses: {
+            '200': {
+              description: 'List of all colors',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      colors: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            name: { type: 'string' },
+                            display_name: { type: 'string' },
+                            color_category: { type: 'number' },
+                            created_at: { type: 'string' },
+                            updated_at: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '500': { description: 'Internal server error' }
+          }
+        },
         post: {
           tags: ['Colors'],
           summary: 'Create a new color',
@@ -554,6 +587,20 @@ function generateUUID(): string {
 function getFileExtension(filename: string): string {
   return filename.split('.').pop() || '';
 }
+
+// Get all colors endpoint
+app.get("/v1/colors", async (c) => {
+  try {
+    const colorsResult = await c.env.DB.prepare(
+      "SELECT * FROM colors ORDER BY created_at DESC"
+    ).all();
+
+    return c.json({ colors: colorsResult.results });
+  } catch (error) {
+    console.error("Error fetching colors:", error);
+    return c.json({ error: "Failed to fetch colors" }, 500);
+  }
+});
 
 // Create color endpoint
 app.post("/v1/colors", async (c) => {
