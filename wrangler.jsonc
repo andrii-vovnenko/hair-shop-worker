@@ -17,6 +17,19 @@
   "routes": [
       "api.perukytyt.com/*"
   ],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "hair",
+			"database_id": "b5839ab2-c604-4ce6-b824-8c8b403747a9"
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2",
+			"bucket_name": "hair-shop"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
