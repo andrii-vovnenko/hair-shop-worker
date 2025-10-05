@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
+import { v4 as uuidv4 } from 'uuid';
 
 type Bindings = {
   DB: D1Database,
@@ -147,7 +148,7 @@ app.get('/api-docs', (c) => {
                                   id: { type: 'string' },
                                   color: { type: 'string' },
                                   price: { type: 'number' },
-                                  old_price: { type: 'number' },
+                                  promo_price: { type: 'number' },
                                   availability: { type: 'boolean' },
                                   images: { type: 'array', items: { type: 'string' } }
                                 }
@@ -262,7 +263,7 @@ app.get('/api-docs', (c) => {
                                 id: { type: 'string' },
                                 color: { type: 'string' },
                                 price: { type: 'number' },
-                                old_price: { type: 'number' },
+                                promo_price: { type: 'number' },
                                 availability: { type: 'boolean' },
                                 images: { type: 'array', items: { type: 'string' } }
                               }
@@ -276,6 +277,74 @@ app.get('/api-docs', (c) => {
               }
             },
             '404': { description: 'Product not found' },
+            '500': { description: 'Internal server error' }
+          }
+        },
+        put: {
+          tags: ['Products'],
+          summary: 'Update a product',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Product ID'
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Product name' },
+                    display_name: { type: 'string', description: 'Display name for the product' },
+                    description: { type: 'string', description: 'Product description' },
+                    short_description: { type: 'string', description: 'Short product description' },
+                    type: { type: 'string', description: 'Product type' },
+                    length: { type: 'number', description: 'Product length' },
+                    base_price: { type: 'number', description: 'Base price' },
+                    base_promo_price: { type: 'number', description: 'Base promotional price' },
+                    category_id: { type: 'string', description: 'Category ID' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Product updated successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      product: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string' },
+                          name: { type: 'string' },
+                          display_name: { type: 'string' },
+                          description: { type: 'string' },
+                          short_description: { type: 'string' },
+                          type: { type: 'string' },
+                          length: { type: 'number' },
+                          base_price: { type: 'number' },
+                          base_promo_price: { type: 'number' },
+                          category_id: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': { description: 'Bad request - invalid data' },
+            '404': { description: 'Product not found' },
+            '409': { description: 'Conflict - product name already exists' },
             '500': { description: 'Internal server error' }
           }
         },
@@ -312,6 +381,54 @@ app.get('/api-docs', (c) => {
         }
       },
       '/v1/variants': {
+        get: {
+          tags: ['Variants'],
+          summary: 'Get all variants',
+          responses: {
+            '200': {
+              description: 'List of all variants',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      variants: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            product_id: { type: 'string' },
+                            sku: { type: 'string' },
+                            price: { type: 'number' },
+                            promo_price: { type: 'number' },
+                            color: { type: 'string' },
+                            stock_quantity: { type: 'number' },
+                            availability: { type: 'boolean' },
+                            images: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  id: { type: 'string' },
+                                  url: { type: 'string' },
+                                  sort_order: { type: 'number' }
+                                }
+                              }
+                            },
+                            created_at: { type: 'string' },
+                            updated_at: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '500': { description: 'Internal server error' }
+          }
+        },
         post: {
           tags: ['Variants'],
           summary: 'Create a new variant',
@@ -383,6 +500,121 @@ app.get('/api-docs', (c) => {
         }
       },
       '/v1/variants/{id}': {
+        get: {
+          tags: ['Variants'],
+          summary: 'Get a single variant by ID',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Variant ID'
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'Variant details',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      variant: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string' },
+                          product_id: { type: 'string' },
+                          sku: { type: 'string' },
+                          price: { type: 'number' },
+                          promo_price: { type: 'number' },
+                          color: { type: 'string' },
+                          stock_quantity: { type: 'number' },
+                          availability: { type: 'boolean' },
+                          images: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                id: { type: 'string' },
+                                url: { type: 'string' },
+                                sort_order: { type: 'number' }
+                              }
+                            }
+                          },
+                          created_at: { type: 'string' },
+                          updated_at: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '404': { description: 'Variant not found' },
+            '500': { description: 'Internal server error' }
+          }
+        },
+        put: {
+          tags: ['Variants'],
+          summary: 'Update a variant',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Variant ID'
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    sku: { type: 'string', description: 'SKU' },
+                    price: { type: 'number', description: 'Price' },
+                    promo_price: { type: 'number', description: 'Promotional price' },
+                    color: { type: 'string', description: 'Color' },
+                    stock_quantity: { type: 'number', description: 'Stock quantity' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Variant updated successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      variant: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string' },
+                          product_id: { type: 'string' },
+                          sku: { type: 'string' },
+                          price: { type: 'number' },
+                          promo_price: { type: 'number' },
+                          color: { type: 'string' },
+                          stock_quantity: { type: 'number' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': { description: 'Bad request - invalid data' },
+            '404': { description: 'Variant not found' },
+            '500': { description: 'Internal server error' }
+          }
+        },
         delete: {
           tags: ['Variants'],
           summary: 'Delete a variant',
@@ -576,11 +808,7 @@ app.get("/message", (c) => {
 
 // Utility function to generate UUID
 function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return uuidv4();
 }
 
 // Utility function to get file extension
@@ -980,8 +1208,8 @@ app.get("/v1/products", async (c) => {
         variants.push({
           id: variant.id,
           color: variant.color,
-          price: variant.price,
-          old_price: variant.promo_price,
+          price: variant.promo_price,
+          promo_price: variant.promo_price,
           availability: availability,
           images: images
         });
@@ -1002,6 +1230,52 @@ app.get("/v1/products", async (c) => {
   } catch (error) {
     console.error("Error fetching products:", error);
     return c.json({ error: "Failed to fetch products" }, 500);
+  }
+});
+
+// Get all variants endpoint
+app.get("/v1/variants", async (c) => {
+  try {
+    const variantsResult = await c.env.DB.prepare(
+      "SELECT * FROM variants ORDER BY created_at DESC"
+    ).all();
+
+    const variants = [];
+    
+    for (const variant of variantsResult.results as any[]) {
+      // Get images for each variant
+      const imagesResult = await c.env.DB.prepare(
+        "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
+      ).bind(variant.id).all();
+
+      const images = imagesResult.results.map((img: any) => ({
+        id: img.id,
+        url: img.url,
+        sort_order: img.sort_order
+      }));
+      
+      // Calculate availability based on stock quantity
+      const availability = ((variant.stock_quantity as number) || 0) > 0;
+      
+      variants.push({
+        id: variant.id,
+        product_id: variant.product_id,
+        sku: variant.sku,
+        price: variant.price,
+        promo_price: variant.promo_price,
+        color: variant.color,
+        stock_quantity: variant.stock_quantity,
+        availability: availability,
+        images: images,
+        created_at: variant.created_at,
+        updated_at: variant.updated_at
+      });
+    }
+
+    return c.json({ variants });
+  } catch (error) {
+    console.error("Error fetching variants:", error);
+    return c.json({ error: "Failed to fetch variants" }, 500);
   }
 });
 
@@ -1041,7 +1315,7 @@ app.get("/v1/products/:id", async (c) => {
         id: variant.id,
         color: variant.color,
         price: variant.price,
-        old_price: variant.promo_price,
+        promo_price: variant.promo_price,
         availability: availability,
         images: images
       });
@@ -1054,6 +1328,10 @@ app.get("/v1/products/:id", async (c) => {
       type: product.type,
       length: product.length,
       description: product.description,
+      short_description: product.short_description,
+      display_name: product.display_name,
+      base_price: product.base_price,
+      base_promo_price: product.base_promo_price,
       variants: variants
     };
 
@@ -1061,6 +1339,243 @@ app.get("/v1/products/:id", async (c) => {
   } catch (error) {
     console.error("Error fetching product:", error);
     return c.json({ error: "Failed to fetch product" }, 500);
+  }
+});
+
+// Update product endpoint
+app.put("/v1/products/:id", async (c) => {
+  try {
+    const product_id = c.req.param('id');
+    const body = await c.req.json();
+    const { name, display_name, description, short_description, type, length, base_price, base_promo_price, category_id } = body;
+
+    // Check if product exists
+    const existingProduct = await c.env.DB.prepare(
+      "SELECT id FROM products WHERE id = ?"
+    ).bind(product_id).first();
+
+    if (!existingProduct) {
+      return c.json({ error: "Product not found" }, 404);
+    }
+
+    // If name is being updated, check if it conflicts with another product
+    if (name) {
+      const nameConflict = await c.env.DB.prepare(
+        "SELECT id FROM products WHERE name = ? AND id != ?"
+      ).bind(name, product_id).first();
+
+      if (nameConflict) {
+        return c.json({ error: "Product with this name already exists" }, 409);
+      }
+    }
+
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
+
+    if (name !== undefined) {
+      updateFields.push("name = ?");
+      updateValues.push(name);
+    }
+    if (display_name !== undefined) {
+      updateFields.push("display_name = ?");
+      updateValues.push(display_name);
+    }
+    if (description !== undefined) {
+      updateFields.push("description = ?");
+      updateValues.push(description);
+    }
+    if (short_description !== undefined) {
+      updateFields.push("short_description = ?");
+      updateValues.push(short_description);
+    }
+    if (type !== undefined) {
+      updateFields.push("type = ?");
+      updateValues.push(type);
+    }
+    if (length !== undefined) {
+      updateFields.push("length = ?");
+      updateValues.push(length);
+    }
+    if (base_price !== undefined) {
+      updateFields.push("base_price = ?");
+      updateValues.push(base_price);
+    }
+    if (base_promo_price !== undefined) {
+      updateFields.push("base_promo_price = ?");
+      updateValues.push(base_promo_price);
+    }
+    if (category_id !== undefined) {
+      updateFields.push("category_id = ?");
+      updateValues.push(category_id);
+    }
+
+    if (updateFields.length === 0) {
+      return c.json({ error: "No fields to update" }, 400);
+    }
+
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
+    updateValues.push(product_id);
+
+    const updateQuery = `UPDATE products SET ${updateFields.join(", ")} WHERE id = ?`;
+    
+    await c.env.DB.prepare(updateQuery).bind(...updateValues).run();
+
+    // Get updated product
+    const updatedProduct = await c.env.DB.prepare(
+      "SELECT * FROM products WHERE id = ?"
+    ).bind(product_id).first();
+
+    if (!updatedProduct) {
+      return c.json({ error: "Failed to retrieve updated product" }, 500);
+    }
+
+    return c.json({ 
+      success: true, 
+      product: { 
+        id: updatedProduct.id, 
+        name: updatedProduct.name, 
+        display_name: updatedProduct.display_name, 
+        description: updatedProduct.description, 
+        short_description: updatedProduct.short_description, 
+        type: updatedProduct.type, 
+        length: updatedProduct.length, 
+        base_price: updatedProduct.base_price, 
+        base_promo_price: updatedProduct.base_promo_price, 
+        category_id: updatedProduct.category_id 
+      } 
+    });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    return c.json({ error: "Failed to update product" }, 500);
+  }
+});
+
+// Get single variant endpoint
+app.get("/v1/variants/:id", async (c) => {
+  try {
+    const variant_id = c.req.param('id');
+
+    // Get variant
+    const variant = await c.env.DB.prepare(
+      "SELECT * FROM variants WHERE id = ?"
+    ).bind(variant_id).first();
+
+    if (!variant) {
+      return c.json({ error: "Variant not found" }, 404);
+    }
+
+    // Get images for the variant
+    const imagesResult = await c.env.DB.prepare(
+      "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
+    ).bind(variant_id).all();
+
+    const images = imagesResult.results.map((img: any) => ({
+      id: img.id,
+      url: img.url,
+      sort_order: img.sort_order
+    }));
+    
+    // Calculate availability based on stock quantity
+    const availability = ((variant.stock_quantity as number) || 0) > 0;
+    
+    const variantData = {
+      id: variant.id,
+      product_id: variant.product_id,
+      sku: variant.sku,
+      price: variant.price,
+      promo_price: variant.promo_price,
+      color: variant.color,
+      stock_quantity: variant.stock_quantity,
+      availability: availability,
+      images: images,
+      created_at: variant.created_at,
+      updated_at: variant.updated_at
+    };
+
+    return c.json({ variant: variantData });
+  } catch (error) {
+    console.error("Error fetching variant:", error);
+    return c.json({ error: "Failed to fetch variant" }, 500);
+  }
+});
+
+// Update variant endpoint
+app.put("/v1/variants/:id", async (c) => {
+  try {
+    const variant_id = c.req.param('id');
+    const body = await c.req.json();
+    const { sku, price, promo_price, color, stock_quantity } = body;
+
+    // Check if variant exists
+    const existingVariant = await c.env.DB.prepare(
+      "SELECT id FROM variants WHERE id = ?"
+    ).bind(variant_id).first();
+
+    if (!existingVariant) {
+      return c.json({ error: "Variant not found" }, 404);
+    }
+
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
+
+    if (sku !== undefined) {
+      updateFields.push("sku = ?");
+      updateValues.push(sku);
+    }
+    if (price !== undefined) {
+      updateFields.push("price = ?");
+      updateValues.push(price);
+    }
+    if (promo_price !== undefined) {
+      updateFields.push("promo_price = ?");
+      updateValues.push(promo_price);
+    }
+    if (color !== undefined) {
+      updateFields.push("color = ?");
+      updateValues.push(color);
+    }
+    if (stock_quantity !== undefined) {
+      updateFields.push("stock_quantity = ?");
+      updateValues.push(stock_quantity);
+    }
+
+    if (updateFields.length === 0) {
+      return c.json({ error: "No fields to update" }, 400);
+    }
+
+    updateFields.push("updated_at = CURRENT_TIMESTAMP");
+    updateValues.push(variant_id);
+
+    const updateQuery = `UPDATE variants SET ${updateFields.join(", ")} WHERE id = ?`;
+    
+    await c.env.DB.prepare(updateQuery).bind(...updateValues).run();
+
+    // Get updated variant
+    const updatedVariant = await c.env.DB.prepare(
+      "SELECT * FROM variants WHERE id = ?"
+    ).bind(variant_id).first();
+
+    if (!updatedVariant) {
+      return c.json({ error: "Failed to retrieve updated variant" }, 500);
+    }
+
+    return c.json({ 
+      success: true, 
+      variant: { 
+        id: updatedVariant.id, 
+        product_id: updatedVariant.product_id, 
+        sku: updatedVariant.sku, 
+        price: updatedVariant.price, 
+        promo_price: updatedVariant.promo_price, 
+        color: updatedVariant.color, 
+        stock_quantity: updatedVariant.stock_quantity 
+      } 
+    });
+  } catch (error) {
+    console.error("Error updating variant:", error);
+    return c.json({ error: "Failed to update variant" }, 500);
   }
 });
 
