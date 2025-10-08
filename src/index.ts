@@ -150,7 +150,17 @@ app.get('/api-docs', (c) => {
                                   price: { type: 'number' },
                                   promo_price: { type: 'number' },
                                   availability: { type: 'boolean' },
-                                  images: { type: 'array', items: { type: 'string' } }
+                                  images: {
+                                    type: 'array',
+                                    items: {
+                                      type: 'object',
+                                      properties: {
+                                        id: { type: 'string' },
+                                        url: { type: 'string' },
+                                        sort_order: { type: 'number' }
+                                      }
+                                    }
+                                  }
                                 }
                               }
                             }
@@ -265,7 +275,17 @@ app.get('/api-docs', (c) => {
                                 price: { type: 'number' },
                                 promo_price: { type: 'number' },
                                 availability: { type: 'boolean' },
-                                images: { type: 'array', items: { type: 'string' } }
+                                images: {
+                                  type: 'array',
+                                  items: {
+                                    type: 'object',
+                                    properties: {
+                                      id: { type: 'string' },
+                                      url: { type: 'string' },
+                                      sort_order: { type: 'number' }
+                                    }
+                                  }
+                                }
                               }
                             }
                           }
@@ -787,6 +807,76 @@ app.get('/api-docs', (c) => {
             '500': { description: 'Internal server error' }
           }
         }
+      },
+      '/v1/variants/{id}/images/resort': {
+        put: {
+          tags: ['Images'],
+          summary: 'Resort images for a variant',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Variant ID'
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['image_orders'],
+                  properties: {
+                    image_orders: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['id', 'sort_order'],
+                        properties: {
+                          id: { type: 'string', description: 'Image ID' },
+                          sort_order: { type: 'number', description: 'New sort order for the image' }
+                        }
+                      },
+                      description: 'Array of image IDs with their new sort orders'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Images resorted successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean' },
+                      message: { type: 'string' },
+                      images: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            url: { type: 'string' },
+                            sort_order: { type: 'number' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': { description: 'Bad request - invalid data' },
+            '404': { description: 'Variant not found' },
+            '500': { description: 'Internal server error' }
+          }
+        }
       }
     },
     components: {
@@ -1202,6 +1292,63 @@ app.delete("/v1/images/:id", async (c) => {
   }
 });
 
+// Resort images endpoint
+app.put("/v1/variants/:id/images/resort", async (c) => {
+  try {
+    const variant_id = c.req.param('id');
+    const body = await c.req.json();
+    const { image_orders } = body; // Array of {id: string, sort_order: number}
+
+    if (!image_orders || !Array.isArray(image_orders)) {
+      return c.json({ error: "image_orders array is required" }, 400);
+    }
+
+    // Check if variant exists
+    const variant = await c.env.DB.prepare(
+      "SELECT id FROM variants WHERE id = ?"
+    ).bind(variant_id).first();
+
+    if (!variant) {
+      return c.json({ error: "Variant not found" }, 404);
+    }
+
+    // Validate that all image IDs belong to this variant
+    const imageIds = image_orders.map((item: any) => item.id);
+    const existingImages = await c.env.DB.prepare(
+      "SELECT id FROM variant_images WHERE variant_id = ? AND id IN (" + imageIds.map(() => '?').join(',') + ")"
+    ).bind(variant_id, ...imageIds).all();
+
+    if (existingImages.results.length !== imageIds.length) {
+      return c.json({ error: "One or more image IDs do not belong to this variant" }, 400);
+    }
+
+    // Update sort orders
+    for (const item of image_orders) {
+      await c.env.DB.prepare(
+        "UPDATE variant_images SET sort_order = ? WHERE id = ?"
+      ).bind(item.sort_order, item.id).run();
+    }
+
+    // Get updated images with new sort order
+    const updatedImages = await c.env.DB.prepare(
+      "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
+    ).bind(variant_id).all();
+
+    return c.json({ 
+      success: true, 
+      message: "Images resorted successfully",
+      images: updatedImages.results.map((img: any) => ({
+        id: img.id,
+        url: img.url,
+        sort_order: img.sort_order
+      }))
+    });
+  } catch (error) {
+    console.error("Error resorting images:", error);
+    return c.json({ error: "Failed to resort images" }, 500);
+  }
+});
+
 // Get all products endpoint
 app.get("/v1/products", async (c) => {
 
@@ -1215,14 +1362,36 @@ app.get("/v1/products", async (c) => {
 
     await Promise.all(productsResult.results.map(async (product: any) => {
       const variantsResult = await c.env.DB.prepare(
-        `SELECT v.*, group_concat(vi.url) as images
-        FROM variants v
-        JOIN variant_images vi ON v.id = vi.variant_id
-        WHERE v.product_id = ?
-        GROUP BY v.id
-        ORDER BY v.created_at ASC
-        `
+        "SELECT * FROM variants WHERE product_id = ? ORDER BY created_at ASC"
       ).bind(product.id).all();
+
+      const variants = [];
+      
+      for (const variant of variantsResult.results as any[]) {
+        // Get images for each variant with sort_order
+        const imagesResult = await c.env.DB.prepare(
+          "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
+        ).bind(variant.id).all();
+
+        const images = imagesResult.results.map((img: any) => ({
+          id: img.id,
+          url: img.url,
+          sort_order: img.sort_order
+        }));
+        
+        // Calculate availability based on stock quantity
+        const availability = (variant.stock_quantity || 0) > 0;
+        
+        variants.push({
+          id: variant.id,
+          color: variant.color,
+          price: variant.price,
+          promo_price: variant.promo_price,
+          availability: availability,
+          stock_quantity: variant.stock_quantity,
+          images: images
+        });
+      }
 
       products.push({
         id: product.id,
@@ -1231,15 +1400,7 @@ app.get("/v1/products", async (c) => {
         type: Number(product.type),
         length: product.length,
         description: product.description,
-        variants: variantsResult.results.map((variant: any) => ({
-          id: variant.id,
-          color: variant.color,
-          price: variant.price,
-          promo_price: variant.promo_price,
-          availability: (variant.stock_quantity || 0) > 0,
-          stock_quantity: variant.stock_quantity,
-          images: variant?.images?.split?.(',') || []
-        }))
+        variants: variants
       });
     }));
     
@@ -1318,12 +1479,16 @@ app.get("/v1/products/:id", async (c) => {
     const variants = [];
     
     for (const variant of variantsResult.results as any[]) {
-      // Get images for each variant
+      // Get images for each variant with sort_order
       const imagesResult = await c.env.DB.prepare(
-        "SELECT url FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
+        "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
       ).bind(variant.id).all();
 
-      const images = imagesResult.results.map((img: any) => img.url);
+      const images = imagesResult.results.map((img: any) => ({
+        id: img.id,
+        url: img.url,
+        sort_order: img.sort_order
+      }));
       
       // Calculate availability based on stock quantity
       const availability = (variant.stock_quantity || 0) > 0;
