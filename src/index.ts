@@ -1330,7 +1330,7 @@ app.get("/v1/products/:id", async (c) => {
       
       variants.push({
         id: variant.id,
-        color: variant.color,
+        color: variant.color.display_name,
         price: variant.price,
         promo_price: variant.promo_price,
         availability: availability,
