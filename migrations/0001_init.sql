@@ -25,7 +25,7 @@ CREATE TABLE variants (
   stock_quantity INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(product_id) REFERENCES products(id)
+  FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
 -- variant images
@@ -34,7 +34,7 @@ CREATE TABLE variant_images (
   variant_id TEXT NOT NULL,
   url TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
-  FOREIGN KEY(variant_id) REFERENCES variants(id)
+  FOREIGN KEY(variant_id) REFERENCES variants(id) ON DELETE CASCADE
 );
 
 CREATE TABLE colors (
