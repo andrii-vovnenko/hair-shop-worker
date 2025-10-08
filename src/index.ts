@@ -855,6 +855,32 @@ app.post("/v1/colors", async (c) => {
   }
 });
 
+app.delete("/v1/colors/:id", async (c) => {
+  try {
+    const color_id = c.req.param("id");
+
+    // Перевірка, чи існує такий колір
+    const color = await c.env.DB.prepare(
+      "SELECT id FROM colors WHERE id = ?"
+    ).bind(color_id).first();
+
+    if (!color) {
+      return c.json({ error: "Color not found" }, 404);
+    }
+
+    // Видалення
+    await c.env.DB.prepare(
+      "DELETE FROM colors WHERE id = ?"
+    ).bind(color_id).run();
+
+    return c.json({ success: true, message: "Color deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting color:", error);
+    return c.json({ error: "Failed to delete color" }, 500);
+  }
+});
+
+
 // Create product endpoint
 app.post("/v1/products", async (c) => {
   try {
@@ -1217,46 +1243,6 @@ app.get("/v1/products", async (c) => {
       });
     }));
     
-    // for (const product of productsResult.results as any[]) {
-    //   // Get variants for each product
-    //   const variantsResult = await c.env.DB.prepare(
-    //     "SELECT * FROM variants WHERE product_id = ? ORDER BY created_at ASC"
-    //   ).bind(product.id).all();
-
-    //   const variants = [];
-      
-    //   for (const variant of variantsResult.results as any[]) {
-    //     // Get images for each variant
-    //     const imagesResult = await c.env.DB.prepare(
-    //       "SELECT url FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
-    //     ).bind(variant.id).all();
-
-    //     const images = imagesResult.results.map((img: any) => img.url);
-        
-    //     // Calculate availability based on stock quantity
-    //     const availability = (variant.stock_quantity || 0) > 0;
-        
-    //     variants.push({
-    //       id: variant.id,
-    //       color: variant.color,
-    //       price: variant.price,
-    //       promo_price: variant.promo_price,
-    //       availability: availability,
-    //       images: images
-    //     });
-    //   }
-
-    //   products.push({
-    //     id: product.id,
-    //     name: product.name,
-    //     category: Number(product.category_id),
-    //     type: Number(product.type),
-    //     length: product.length,
-    //     description: product.description,
-    //     variants: variants
-    //   });
-    // }
-
     return c.json({ products });
   } catch (error) {
     console.error("Error fetching products:", error);
