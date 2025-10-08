@@ -1189,6 +1189,12 @@ app.delete("/v1/products/:id", async (c) => {
       await c.env.R2.delete(image.url);
     }
 
+    // Delete all variant images
+    await c.env.DB.prepare("DELETE FROM variant_images WHERE variant_id IN (SELECT id FROM variants WHERE product_id = ?)").bind(product_id).run();
+
+    // Delete all variants
+    await c.env.DB.prepare("DELETE FROM variants WHERE product_id = ?").bind(product_id).run();
+
     // Delete from database (cascade will handle variant_images)
     await c.env.DB.prepare("DELETE FROM products WHERE id = ?").bind(product_id).run();
 
@@ -1222,6 +1228,9 @@ app.delete("/v1/variants/:id", async (c) => {
     for (const image of variantImages.results as any[]) {
       await c.env.R2.delete(image.url);
     }
+
+    // Delete all variant images
+    await c.env.DB.prepare("DELETE FROM variant_images WHERE variant_id = ?").bind(variant_id).run();
 
     // Delete from database (cascade will handle variant_images)
     await c.env.DB.prepare("DELETE FROM variants WHERE id = ?").bind(variant_id).run();
@@ -1362,7 +1371,12 @@ app.get("/v1/products", async (c) => {
 
     await Promise.all(productsResult.results.map(async (product: any) => {
       const variantsResult = await c.env.DB.prepare(
-        "SELECT * FROM variants WHERE product_id = ? ORDER BY created_at ASC"
+        `SELECT v.*, c.display_name as color_display_name
+        FROM variants v
+        JOIN colors c ON v.color = c.name
+        WHERE product_id = ?
+        ORDER BY created_at ASC
+        `
       ).bind(product.id).all();
 
       const variants = [];
@@ -1385,6 +1399,7 @@ app.get("/v1/products", async (c) => {
         variants.push({
           id: variant.id,
           color: variant.color,
+          color_display_name: variant.color_display_name,
           price: variant.price,
           promo_price: variant.promo_price,
           availability: availability,
@@ -1495,7 +1510,7 @@ app.get("/v1/products/:id", async (c) => {
       
       variants.push({
         id: variant.id,
-        color: variant.color.display_name,
+        color: variant.color,
         price: variant.price,
         promo_price: variant.promo_price,
         availability: availability,
