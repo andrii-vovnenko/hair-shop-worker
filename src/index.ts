@@ -1699,6 +1699,12 @@ app.get("/v1/variants/:id", async (c) => {
   }
 });
 
+app.post("/v1/login", async (c) => {
+  const { email, password } = await c.req.json();
+
+  return c.json({ success: true, token: "1234567890" });
+});
+
 // Update variant endpoint
 app.put("/v1/variants/:id", async (c) => {
   try {
