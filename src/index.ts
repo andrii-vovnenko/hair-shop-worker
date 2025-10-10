@@ -15,6 +15,8 @@ app.use('*', cors({
   origin: '*',                 // allow all origins (or specify your frontend URL)
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 86400,
 }))
 
 // Swagger UI endpoint
