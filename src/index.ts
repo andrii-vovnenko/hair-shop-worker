@@ -1702,8 +1702,18 @@ app.get("/v1/variants/:id", async (c) => {
 app.post("/v1/login", async (c) => {
   const { email, password } = await c.req.json();
 
-  return c.json({ success: true, token: "1234567890" });
+  const USER = {
+    login: "admin",
+    password: "!!!fylhsq1"
+  };
+
+  if (email === USER.login && password === USER.password) {
+    return c.json({ success: true, token: "1234567890" });
+  }
+
+  return c.json({ success: false, error: "Невірний логін або пароль" }, 401);
 });
+
 
 // Update variant endpoint
 app.put("/v1/variants/:id", async (c) => {
