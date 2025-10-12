@@ -1418,6 +1418,7 @@ app.get("/v1/products", async (c) => {
         type: Number(product.type),
         length: product.length,
         description: product.description,
+        article: product.short_description,
         variants: variants
       });
     }));
