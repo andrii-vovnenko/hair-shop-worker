@@ -1833,16 +1833,11 @@ app.get('/v1/comments', async (c) => {
       ORDER BY created_at DESC
     `).bind(product_id).all()
 
-    return c.json({ comments: result.results })
+    return c.json({ comments: [] })
   } catch (err) {
     console.error('Помилка при завантаженні коментарів:', err)
     return c.json({ error: 'Internal Server Error' }, 500)
   }
 })
-
-
-
-
-
 
 export default app;
