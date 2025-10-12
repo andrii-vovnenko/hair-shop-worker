@@ -1850,13 +1850,13 @@ app.get('/v1/rating', async (c) => {
 
     const result = await c.env.DB.prepare(`
       SELECT
-        AVG(rating)::numeric(3,1) AS average,
+        ROUND(AVG(rating), 1) AS average,
         COUNT(*) AS count
       FROM comments
       WHERE product_id = ?
-    `).bind(product_id).first(); // ← беремо один рядок, не .all()
+    `).bind(product_id).first(); 
 
-    return c.json(result); // ← повертаємо { average, count }
+    return c.json(result); 
   } catch (err) {
     console.error('rating error:', err);
     return c.json({ error: 'Помилка сервера' }, 500);
