@@ -1413,6 +1413,7 @@ app.get("/v1/products", async (c) => {
       products.push({
         id: product.id,
         name: product.name,
+        display_name: product.display_name,
         category: Number(product.category_id),
         type: Number(product.type),
         length: product.length,
