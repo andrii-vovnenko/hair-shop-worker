@@ -1795,40 +1795,51 @@ app.put("/v1/variants/:id", async (c) => {
 });
 
 app.post('/v1/comments', async (c) => {
-  const body = await c.req.json()
-  const { name, rating, review, product_id } = body
+  try {
+    const body = await c.req.json()
+    const { name, rating, review, product_id } = body
 
-  if (!rating || !product_id) {
-    return c.json({ error: 'rating і product_id обов’язкові' }, 400)
+    if (!rating || !product_id) {
+      return c.json({ error: 'rating і product_id обов’язкові' }, 400)
+    }
+
+    const id = crypto.randomUUID()
+    const createdAt = new Date().toISOString()
+
+    await c.env.DB.prepare(`
+      INSERT INTO comments (id, product_id, author, text, rating, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(id, product_id, name || 'Анонім', review || null, rating, createdAt).run()
+
+    return c.json({ success: true })
+  } catch (err) {
+    console.error('Помилка при додаванні коментаря:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
   }
-
-  const id = crypto.randomUUID()
-  const createdAt = new Date().toISOString()
-
-  await c.env.DB.prepare(`
-    INSERT INTO comments (id, product_id, author, text, rating, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(id, product_id, name || 'Анонім', review || null, rating, createdAt).run()
-
-  return c.json({ success: true })
 })
 
 app.get('/v1/comments', async (c) => {
-  const product_id = c.req.query('product_id')
+  try {
+    const product_id = c.req.query('product_id')
 
-  if (!product_id) {
-    return c.json({ error: 'product_id обов’язковий' }, 400)
+    if (!product_id) {
+      return c.json({ error: 'product_id обов’язковий' }, 400)
+    }
+
+    const result = await c.env.DB.prepare(`
+      SELECT id, author, text, rating, created_at
+      FROM comments
+      WHERE product_id = ?
+      ORDER BY created_at DESC
+    `).bind(product_id).all()
+
+    return c.json({ comments: result.results })
+  } catch (err) {
+    console.error('Помилка при завантаженні коментарів:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
   }
-
-  const result = await c.env.DB.prepare(`
-    SELECT id, author, text, rating, created_at
-    FROM comments
-    WHERE product_id = ?
-    ORDER BY created_at DESC
-  `).bind(product_id).all()
-
-  return c.json({ comments: result.results })
 })
+
 
 
 
