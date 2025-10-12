@@ -1840,4 +1840,30 @@ app.get('/v1/comments', async (c) => {
   }
 })
 
+app.get('/v1/rating', async (c) => {
+  try {
+    const product_id = c.req.query('product_id');
+
+    if (!product_id) {
+      return c.json({ error: 'product_id обов’язковий' }, 400);
+    }
+
+    const result = await c.env.DB.prepare(`
+      SELECT
+        AVG(rating)::numeric(3,1) AS average,
+        COUNT(*) AS count
+      FROM comments
+      WHERE product_id = ?
+    `).bind(product_id).first(); // ← беремо один рядок, не .all()
+
+    return c.json(result); // ← повертаємо { average, count }
+  } catch (err) {
+    console.error('rating error:', err);
+    return c.json({ error: 'Помилка сервера' }, 500);
+  }
+});
+
+
+
+
 export default app;
