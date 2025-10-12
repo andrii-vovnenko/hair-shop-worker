@@ -1796,10 +1796,10 @@ app.put("/v1/variants/:id", async (c) => {
 
 app.post('/v1/comments', async (c) => {
   const body = await c.req.json()
-  const { name, rating, review, productId } = body
+  const { name, rating, review, product_id } = body
 
-  if (!rating || !productId) {
-    return c.json({ error: 'rating і productId обов’язкові' }, 400)
+  if (!rating || !product_id) {
+    return c.json({ error: 'rating і product_id обов’язкові' }, 400)
   }
 
   const id = crypto.randomUUID()
@@ -1808,15 +1808,15 @@ app.post('/v1/comments', async (c) => {
   await c.env.DB.prepare(`
     INSERT INTO comments (id, product_id, author, text, rating, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(id, productId, name || 'Анонім', review || null, rating, createdAt).run()
+  `).bind(id, product_id, name || 'Анонім', review || null, rating, createdAt).run()
 
   return c.json({ success: true })
 })
 
 app.get('/v1/comments', async (c) => {
-  const productId = c.req.query('product_id')
+  const product_id = c.req.query('product_id')
 
-  if (!productId) {
+  if (!product_id) {
     return c.json({ error: 'product_id обов’язковий' }, 400)
   }
 
@@ -1825,7 +1825,7 @@ app.get('/v1/comments', async (c) => {
     FROM comments
     WHERE product_id = ?
     ORDER BY created_at DESC
-  `).bind(productId).all()
+  `).bind(product_id).all()
 
   return c.json({ comments: result.results })
 })
