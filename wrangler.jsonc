@@ -21,13 +21,23 @@
 		{
 			"binding": "DB",
 			"database_name": "hair",
-			"database_id": "b5839ab2-c604-4ce6-b824-8c8b403747a9"
+			"database_id": "b5839ab2-c604-4ce6-b824-8c8b403747a9",
+			"remote": true
 		},
 	],
 	"r2_buckets": [
 		{
 			"binding": "R2",
-			"bucket_name": "hair-shop"
+			"bucket_name": "hair-shop",
+			"preview_bucket_name": "hair-shop"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "58c4cd81b77f4eb09af8f0bf51c3af00",
+			"preview_id": "58c4cd81b77f4eb09af8f0bf51c3af00",
+			"remote": true
 		}
 	]
 	/**

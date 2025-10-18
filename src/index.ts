@@ -6,8 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 type Bindings = {
   DB: D1Database,
   R2: R2Bucket,
+  KV: KVNamespace,
 }
 
+const HOUR = 60 * 60;
+const MINUTE = 60;
 const app = new Hono<{ Bindings: Bindings }>();
 
 // Enable CORS globally
@@ -1362,8 +1365,15 @@ app.put("/v1/variants/:id/images/resort", async (c) => {
 
 // Get all products endpoint
 app.get("/v1/products", async (c) => {
+  const noCache = c.req.query('noCache');
 
   try {
+    const cachedProducts = await c.env.KV.get('products');
+
+    if (cachedProducts && !noCache) {
+      return c.json({ products: JSON.parse(cachedProducts) });
+    }
+
     // Get all products
     const productsResult = await c.env.DB.prepare(
       "SELECT * FROM products ORDER BY created_at DESC"
@@ -1422,6 +1432,8 @@ app.get("/v1/products", async (c) => {
         variants: variants
       });
     }));
+
+    await c.env.KV.put('products', JSON.stringify(products), { expirationTtl: HOUR });
     
     return c.json({ products });
   } catch (error) {
@@ -1432,7 +1444,14 @@ app.get("/v1/products", async (c) => {
 
 // Get all variants endpoint
 app.get("/v1/variants", async (c) => {
+  const noCache = c.req.query('noCache');
   try {
+    const cachedVariants = await c.env.KV.get('variants');
+
+    if (cachedVariants && !noCache) {
+      return c.json({ variants: JSON.parse(cachedVariants) });
+    }
+
     const variantsResult = await c.env.DB.prepare(
       "SELECT * FROM variants ORDER BY created_at DESC"
     ).all();
@@ -1469,6 +1488,8 @@ app.get("/v1/variants", async (c) => {
       });
     }
 
+    await c.env.KV.put('variants', JSON.stringify(variants), { expirationTtl: HOUR });
+
     return c.json({ variants });
   } catch (error) {
     console.error("Error fetching variants:", error);
@@ -1478,8 +1499,15 @@ app.get("/v1/variants", async (c) => {
 
 // Get single product endpoint
 app.get("/v1/products/:id", async (c) => {
+  const noCache = c.req.query('noCache');
   try {
     const product_id = c.req.param('id');
+
+    const cachedProduct = await c.env.KV.get(`products:${product_id}`);
+
+    if (cachedProduct && !noCache) {
+      return c.json({ product: JSON.parse(cachedProduct) });
+    }
 
     // Get product
     const product = await c.env.DB.prepare(
@@ -1535,6 +1563,8 @@ app.get("/v1/products/:id", async (c) => {
       base_promo_price: product.base_promo_price,
       variants: variants
     };
+
+    await c.env.KV.put(`products:${product_id}`, JSON.stringify(productData), { expirationTtl: HOUR });
 
     return c.json({ product: productData });
   } catch (error) {
@@ -1656,6 +1686,13 @@ app.put("/v1/products/:id", async (c) => {
 app.get("/v1/variants/:id", async (c) => {
   try {
     const variant_id = c.req.param('id');
+    const noCache = c.req.query('noCache');
+
+    const cachedVariant = await c.env.KV.get(`variants:${variant_id}`);
+
+    if (cachedVariant && !noCache) {
+      return c.json({ variant: JSON.parse(cachedVariant) });
+    }
 
     // Get variant
     const variant = await c.env.DB.prepare(
