@@ -1530,8 +1530,14 @@ app.get("/v2/products", async (c) => {
     const whereClause = [];
     const whereValues = [];
     if (ids) {
-      whereClause.push('p.id IN (?)');
-      whereValues.push(ids.split(','));
+      const idsWhereClause = [];  
+      for (const id of ids.split(',')) {
+        idsWhereClause.push('p.id = ?');
+        whereValues.push(id);
+      }
+      if (idsWhereClause.length > 0) {
+        whereClause.push(`(${idsWhereClause.join(' OR ')})`);
+      }
     }
     if (category) {
       whereClause.push('p.category_id = ?');
