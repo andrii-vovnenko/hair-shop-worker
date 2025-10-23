@@ -1549,7 +1549,7 @@ app.get("/v2/products", async (c) => {
     }
     if (minPrice) {
       whereClause.push('(v.price >= ? OR v.promo_price >= ?)');
-      whereValues.push(minPrice);
+      whereValues.push(minPrice, minPrice);
     }
     if (length) {
       console.log(length);
