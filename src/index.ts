@@ -1530,7 +1530,8 @@ app.get("/v2/products", async (c) => {
     const whereClause = [];
     const whereValues = [];
     if (ids) {
-      const idsWhereClause = [];  
+      const idsWhereClause = [];
+        
       for (const id of ids.split(',')) {
         idsWhereClause.push('p.id = ?');
         whereValues.push(id);
@@ -1543,14 +1544,17 @@ app.get("/v2/products", async (c) => {
       whereClause.push('p.category_id = ?');
       whereValues.push(Number(category));
     }
+  const effectivePriceExpr = 'COALESCE(NULLIF(v.promo_price, 0), v.price)';
+
     if (maxPrice) {
-      whereClause.push('(v.promo_price <= ?)');
+      whereClause.push(`${effectivePriceExpr} <= ?`);
       whereValues.push(maxPrice);
     }
     if (minPrice) {
-      whereClause.push('(v.promo_price >= ?)');
+      whereClause.push(`${effectivePriceExpr} >= ?`);
       whereValues.push(minPrice);
     }
+
     if (length) {
       console.log(length);
       const lengthWhereClause = [];
@@ -1589,7 +1593,7 @@ app.get("/v2/products", async (c) => {
       JOIN variants v ON p.id = v.product_id
       ${whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : ''}
       GROUP BY p.id
-      ORDER BY MIN(IFNULL(v.promo_price, v.price)) ${sort === 'asc' ? 'ASC' : 'DESC'}
+      ORDER BY MIN(COALESCE(NULLIF(v.promo_price, 0), v.price)) ${sort === 'asc' ? 'ASC' : 'DESC'}
       ${page && limit ? `LIMIT ? OFFSET ?` : ''}`
     ).bind(...whereValues, ...(page && limit ? [limit, (page - 1) * limit] : [])).all(),
       c.env.DB.prepare(
@@ -1613,7 +1617,7 @@ app.get("/v2/products", async (c) => {
         FROM variants v
         JOIN colors c ON v.color = c.name
         WHERE product_id = ?
-        ORDER BY IFNULL(v.promo_price, v.price) ${sort === 'asc' ? 'ASC' : 'DESC'}
+        ORDER BY COALESCE(NULLIF(v.promo_price, 0), v.price) ${sort === 'asc' ? 'ASC' : 'DESC'}
         `
       ).bind(product.id).all();
 
