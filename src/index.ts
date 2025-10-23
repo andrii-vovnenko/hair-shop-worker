@@ -1544,13 +1544,13 @@ app.get("/v2/products", async (c) => {
       whereValues.push(Number(category));
     }
     if (maxPrice) {
-  whereClause.push('COALESCE(NULLIF(v.promo_price, 0), v.price) >= ?')
-  whereValues.push(maxPrice)
-}
-   if (minPrice) {
-  whereClause.push('COALESCE(NULLIF(v.promo_price, 0), v.price) >= ?')
-  whereValues.push(minPrice)
-}
+      whereClause.push('(v.promo_price <= ? OR v.price <= ?)');
+      whereValues.push(maxPrice, maxPrice);
+    }
+    if (minPrice) {
+      whereClause.push('(v.promo_price >= ? OR v.price >= ?)');
+      whereValues.push(minPrice, minPrice);
+    }
     if (length) {
       console.log(length);
       const lengthWhereClause = [];
