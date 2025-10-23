@@ -1509,142 +1509,152 @@ app.get("/v2/products", async (c) => {
   const noCache = c.req.query('noCache');
   const maxPrice = c.req.query('maxPrice');
   const minPrice = c.req.query('minPrice');
-  // length is a comma separated list of lengths
   const length = c.req.query('length');
   const type = c.req.query('type');
   const category = c.req.query('category');
   const page = Number(c.req.query('page'));
   const limit = Number(c.req.query('limit')) || 10;
   const ids = c.req.query('ids');
-  // sort only by price
   const sort = c.req.query('sortOrder') || 'asc';
 
+  const effectivePriceExpr = 'COALESCE(NULLIF(v.promo_price, 0), v.price)';
+  const cacheKey = ['products', maxPrice, minPrice, length, type, category, page, limit, sort, ids].filter(Boolean).join(':');
+
   try {
-    const cacheKey = ['products', maxPrice, minPrice, length, type, category, page, limit, sort, ids].filter(Boolean).join(':');
     const cachedProducts = await c.env.KV.get(cacheKey);
-    console.log(noCache);
     if (cachedProducts && !noCache) {
       return c.json(JSON.parse(cachedProducts));
     }
 
-    const whereClause = [];
-    const whereValues = [];
+    const baseWhereClause: string[] = [];
+    const baseWhereValues: any[] = [];
+
     if (ids) {
-      const idsWhereClause = [];  
-      for (const id of ids.split(',')) {
-        idsWhereClause.push('p.id = ?');
-        whereValues.push(id);
-      }
-      if (idsWhereClause.length > 0) {
-        whereClause.push(`(${idsWhereClause.join(' OR ')})`);
-      }
+      const idsWhereClause = ids.split(',').map(() => 'p.id = ?');
+      baseWhereClause.push(`(${idsWhereClause.join(' OR ')})`);
+      baseWhereValues.push(...ids.split(','));
     }
+
     if (category) {
-      whereClause.push('p.category_id = ?');
-      whereValues.push(Number(category));
+      baseWhereClause.push('p.category_id = ?');
+      baseWhereValues.push(Number(category));
     }
+
     if (maxPrice) {
-      whereClause.push('(v.price <= ? OR v.promo_price <= ?)');
-      whereValues.push(maxPrice, maxPrice);
+      baseWhereClause.push(`${effectivePriceExpr} <= ?`);
+      baseWhereValues.push(maxPrice);
     }
+
     if (minPrice) {
-      whereClause.push('(v.price >= ? OR v.promo_price >= ?)');
-      whereValues.push(minPrice, minPrice);
+      baseWhereClause.push(`${effectivePriceExpr} >= ?`);
+      baseWhereValues.push(minPrice);
     }
+
     if (length) {
-      console.log(length);
-      const lengthWhereClause = [];
-      const normalizedLength = length.split(',');
-      for (const len of normalizedLength) {
+      const lengthWhereClause: string[] = [];
+      for (const len of length.split(',')) {
         const [min, max] = HAIR_LENGTHS[len as keyof typeof HAIR_LENGTHS];
         if (min !== undefined && max !== undefined) {
           lengthWhereClause.push('(p.length >= ? AND p.length <= ?)');
-          whereValues.push(min);
-          whereValues.push(max);
+          baseWhereValues.push(min, max);
         }
       }
       if (lengthWhereClause.length > 0) {
-        whereClause.push(`(${lengthWhereClause.join(' OR ')})`);
+        baseWhereClause.push(`(${lengthWhereClause.join(' OR ')})`);
       }
     }
+
     if (type) {
-      const typeWhereClause = [];
-      const normalizedType = type.split(',');
-      for (const type of normalizedType) {
-        typeWhereClause.push('p.type = ?');
-        whereValues.push(Number(type));
+      const typeWhereClause = type.split(',').map(() => 'p.type = ?');
+      baseWhereClause.push(`(${typeWhereClause.join(' OR ')})`);
+      baseWhereValues.push(...type.split(',').map(Number));
+    }
+
+    async function fetchProducts(minOverride?: number) {
+      const clause = [...baseWhereClause];
+      const values = [...baseWhereValues];
+
+      if (minPrice && minOverride !== undefined) {
+        const idx = clause.findIndex(c => c.includes(`${effectivePriceExpr} >= ?`));
+        if (idx !== -1) {
+          clause[idx] = `${effectivePriceExpr} >= ?`;
+          values[idx] = minOverride;
+        }
       }
-      if (typeWhereClause.length > 0) {
-        whereClause.push(`(${typeWhereClause.join(' OR ')})`);
+
+      const [productsResult, totalProducts] = await Promise.all([
+        c.env.DB.prepare(
+          `SELECT p.*
+           FROM products p
+           JOIN variants v ON p.id = v.product_id
+           ${clause.length > 0 ? `WHERE ${clause.join(' AND ')}` : ''}
+           GROUP BY p.id
+           ORDER BY MIN(${effectivePriceExpr}) ${sort === 'asc' ? 'ASC' : 'DESC'}
+           ${page && limit ? `LIMIT ? OFFSET ?` : ''}`
+        ).bind(...values, ...(page && limit ? [limit, (page - 1) * limit] : [])).all(),
+        c.env.DB.prepare(
+          `SELECT COUNT(*) as total_products
+           FROM (
+             SELECT 1
+             FROM products p
+             JOIN variants v ON p.id = v.product_id
+             ${clause.length > 0 ? `WHERE ${clause.join(' AND ')}` : ''}
+             GROUP BY p.id
+           ) as subquery`
+        ).bind(...values).first()
+      ]);
+
+      return { productsResult, totalProducts, usedMinPrice: minOverride ?? minPrice };
+    }
+
+    let { productsResult, totalProducts, usedMinPrice } = await fetchProducts();
+
+    if (minPrice && productsResult.results.length === 0) {
+      let fallbackMin = Number(minPrice);
+      const maxAttempts = 10;
+      const step = 100;
+
+      for (let i = 0; i < maxAttempts; i++) {
+        fallbackMin += step;
+        const result = await fetchProducts(fallbackMin);
+        if (result.productsResult.results.length > 0) {
+          ({ productsResult, totalProducts, usedMinPrice } = result);
+          break;
+        }
       }
     }
-    console.log(whereClause.join(' AND '));
-    console.log(whereValues);
-    // before query time in ms
-    console.log('before query time in ms: ', Date.now() - start);
-    const [productsResult, totalProducts] = await Promise.all([
-      c.env.DB.prepare(
-      `SELECT p.*
-      FROM products p
-      JOIN variants v ON p.id = v.product_id
-      ${whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : ''}
-      GROUP BY p.id
-      ORDER BY MIN(IFNULL(v.promo_price, v.price)) ${sort === 'asc' ? 'ASC' : 'DESC'}
-      ${page && limit ? `LIMIT ? OFFSET ?` : ''}`
-    ).bind(...whereValues, ...(page && limit ? [limit, (page - 1) * limit] : [])).all(),
-      c.env.DB.prepare(
-        `SELECT COUNT(*) as total_products
-        FROM (
-        SELECT 1
-        FROM products p
-        JOIN variants v ON p.id = v.product_id
-        ${whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : ''}
-        GROUP BY p.id) as subquery`
-      ).bind(...whereValues).first()
-    ]);
-    console.log(totalProducts);
-    // after query time in ms
-    console.log('after query time in ms: ', Date.now() - start);
+
     const products: any[] = [];
 
     await Promise.all(productsResult.results.map(async (product: any, index: number) => {
       const variantsResult = await c.env.DB.prepare(
         `SELECT v.*, c.display_name as color_display_name
-        FROM variants v
-        JOIN colors c ON v.color = c.name
-        WHERE product_id = ?
-        ORDER BY IFNULL(v.promo_price, v.price) ${sort === 'asc' ? 'ASC' : 'DESC'}
-        `
+         FROM variants v
+         JOIN colors c ON v.color = c.name
+         WHERE product_id = ?
+         ORDER BY ${effectivePriceExpr} ${sort === 'asc' ? 'ASC' : 'DESC'}`
       ).bind(product.id).all();
 
-      const variants = [];
-      
-      for (const variant of variantsResult.results as any[]) {
-        // Get images for each variant with sort_order
+      const variants = await Promise.all(variantsResult.results.map(async (variant: any) => {
         const imagesResult = await c.env.DB.prepare(
           "SELECT id, url, sort_order FROM variant_images WHERE variant_id = ? ORDER BY sort_order ASC"
         ).bind(variant.id).all();
 
-        const images = imagesResult.results.map((img: any) => ({
-          id: img.id,
-          url: img.url,
-          sort_order: img.sort_order
-        }));
-        
-        // Calculate availability based on stock quantity
-        const availability = (variant.stock_quantity || 0) > 0;
-        
-        variants.push({
+        return {
           id: variant.id,
           color: variant.color,
           color_display_name: variant.color_display_name,
           price: variant.price,
           promo_price: variant.promo_price,
-          availability: availability,
+          availability: (variant.stock_quantity || 0) > 0,
           stock_quantity: variant.stock_quantity,
-          images: images
-        });
-      }
+          images: imagesResult.results.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+            sort_order: img.sort_order
+          }))
+        };
+      }));
 
       products[index] = {
         id: product.id,
@@ -1655,20 +1665,21 @@ app.get("/v2/products", async (c) => {
         length: product.length,
         description: product.description,
         article: product.short_description,
-        variants: variants
+        variants
       };
     }));
-    // after products time in ms
-    console.log('after variants time in ms: ', Date.now() - start);
+
     const totalPages = totalProducts?.total_products ? Math.ceil((totalProducts.total_products as number) / limit) : 0;
+
     await c.env.KV.put(cacheKey, JSON.stringify({ products, totalPages, totalProducts: totalProducts?.total_products }), { expirationTtl: HOUR });
-    
-    return c.json({ products, totalPages, totalProducts: totalProducts?.total_products });
+
+    return c.json({ products, totalPages, totalProducts: totalProducts?.total_products, usedMinPrice });
   } catch (error) {
     console.error("Error fetching products:", error);
     return c.json({ error: "Failed to fetch products" }, 500);
   }
 });
+
 
 
 // Get single product endpoint
